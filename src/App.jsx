@@ -5,7 +5,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { FileViewerModal } from './components/FileViewerModal';
 import { Toast } from './components/Toast';
-import { getAttendanceRecords, saveAttendanceRecord, deleteAttendanceRecord, resetAttendanceData } from './utils/storage';
+import { getAttendanceRecords, saveAttendanceRecord, deleteAttendanceRecord } from './utils/storage';
 import { Sparkles } from 'lucide-react';
 
 export function App() {
@@ -19,9 +19,8 @@ export function App() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    // Load attendance records from storage
-    const data = getAttendanceRecords();
-    setRecords(data);
+    // Load attendance records from Supabase
+    getAttendanceRecords().then(data => setRecords(data));
   }, []);
 
   const showToast = (message, type = 'success') => {
@@ -49,17 +48,25 @@ export function App() {
     showToast('Berhasil masuk ke Mode Rekap Admin!', 'success');
   };
 
-  const handleAttendanceSubmitSuccess = (newRecord) => {
-    const updated = saveAttendanceRecord(newRecord);
-    setRecords(updated);
-    showToast(`Presensi an. ${newRecord.nama} berhasil dicatat!`, 'success');
+  const handleAttendanceSubmitSuccess = async (newRecord) => {
+    try {
+      const updated = await saveAttendanceRecord(newRecord);
+      setRecords(updated);
+      showToast(`Presensi an. ${newRecord.nama} berhasil dicatat!`, 'success');
+    } catch (err) {
+      showToast('Gagal menyimpan presensi. Coba lagi.', 'error');
+    }
   };
 
-  const handleDeleteRecord = (id) => {
+  const handleDeleteRecord = async (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data presensi ini dari rekapan?')) {
-      const updated = deleteAttendanceRecord(id);
-      setRecords(updated);
-      showToast('Rekod data presensi berhasil dihapus', 'info');
+      try {
+        const updated = await deleteAttendanceRecord(id);
+        setRecords(updated);
+        showToast('Rekod data presensi berhasil dihapus', 'info');
+      } catch (err) {
+        showToast('Gagal menghapus data. Coba lagi.', 'error');
+      }
     }
   };
 
