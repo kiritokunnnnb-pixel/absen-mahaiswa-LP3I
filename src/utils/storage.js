@@ -47,19 +47,25 @@ export const getAttendanceRecords = async () => {
       ...record,
       fileProof: record.file_url
         ? {
-            name: record.file_name,
-            type: record.file_type,
+            name: record.file_name || 'bukti-file',
+            type: record.file_type || 'image/png',
             dataUrl: record.file_url,
           }
         : null,
     }));
 
-    // Merge with local fallback records (if any created offline)
+    // Merge with local fallback records (if any created offline or with local file proof)
     const localRecords = getLocalRecords();
     const map = new Map();
     dbRecords.forEach((r) => map.set(r.id, r));
     localRecords.forEach((r) => {
-      if (!map.has(r.id)) map.set(r.id, r);
+      const existing = map.get(r.id);
+      if (!existing) {
+        map.set(r.id, r);
+      } else if (!existing.fileProof && r.fileProof) {
+        // Retain local file proof if Supabase storage was null
+        existing.fileProof = r.fileProof;
+      }
     });
 
     return Array.from(map.values()).sort(
@@ -75,6 +81,9 @@ export const saveAttendanceRecord = async (newRecord) => {
   let file_url = null;
   let file_name = null;
   let file_type = null;
+
+  // Always back up the full record (including base64 fileProof) to LocalStorage first
+  saveLocalRecord(newRecord);
 
   try {
     // Upload file to Supabase Storage if a file proof is attached
@@ -95,6 +104,13 @@ export const saveAttendanceRecord = async (newRecord) => {
           file_url = urlData.publicUrl;
           file_name = newRecord.fileProof.name;
           file_type = newRecord.fileProof.type;
+        } else {
+          // If storage bucket isn't available, store dataUrl if it's small or rely on local backup
+          file_name = newRecord.fileProof.name;
+          file_type = newRecord.fileProof.type;
+          if (newRecord.fileProof.dataUrl.length < 500000) {
+            file_url = newRecord.fileProof.dataUrl;
+          }
         }
       } catch (fileErr) {
         console.warn('File upload warning:', fileErr);
@@ -113,14 +129,9 @@ export const saveAttendanceRecord = async (newRecord) => {
 
     if (error) throw error;
 
-    // Save to local cache as backup
-    saveLocalRecord(newRecord);
-
     return await getAttendanceRecords();
   } catch (error) {
-    console.warn('Supabase insert failed, saving to local fallback storage:', error);
-    // Save to local storage as fallback so data is NOT lost
-    saveLocalRecord(newRecord);
+    console.warn('Supabase insert failed, relying on local fallback storage:', error);
     return await getAttendanceRecords();
   }
 };
@@ -134,7 +145,7 @@ export const deleteAttendanceRecord = async (recordId) => {
       .eq('id', recordId)
       .single();
 
-    if (record?.file_url) {
+    if (record?.file_url && record.file_url.startsWith('http')) {
       const parts = record.file_url.split('/');
       const fileName = parts[parts.length - 1];
       await supabase.storage.from('bukti-kehadiran').remove([fileName]);
