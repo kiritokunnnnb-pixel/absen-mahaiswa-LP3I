@@ -7,7 +7,7 @@ export const FileUploader = ({ file, onFileSelect, onFileRemove, isRequired }) =
   const [errorMsg, setErrorMsg] = useState('');
 
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
-  const MAX_SIZE_MB = 5;
+  const MAX_SIZE_MB = 2;
 
   const processFile = (selectedFile) => {
     setErrorMsg('');
@@ -100,7 +100,7 @@ export const FileUploader = ({ file, onFileSelect, onFileRemove, isRequired }) =
               Klik atau geser file bukti ke sini
             </p>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', marginTop: '4px' }}>
-              Mendukung format: <span style={{ color: 'var(--accent-secondary)', fontWeight: 600 }}>JPG, PNG, PDF</span> (Maksimal 5MB)
+              Mendukung format: <span style={{ color: 'var(--accent-secondary)', fontWeight: 600 }}>JPG, PNG, PDF</span> (Maksimal 2MB)
             </p>
           </div>
         </div>

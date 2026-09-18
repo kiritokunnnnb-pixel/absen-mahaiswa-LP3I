@@ -6,6 +6,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { FileViewerModal } from './components/FileViewerModal';
 import { Toast } from './components/Toast';
 import { getAttendanceRecords, saveAttendanceRecord, deleteAttendanceRecord } from './utils/storage';
+import { supabase } from './lib/supabase';
 import { Sparkles } from 'lucide-react';
 
 export function App() {
@@ -19,8 +20,24 @@ export function App() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    // Load attendance records from Supabase
-    getAttendanceRecords().then(data => setRecords(data));
+    // 1. Initial Load from Supabase Cloud DB
+    getAttendanceRecords().then(data => setRecords(data)).catch(() => {});
+
+    // 2. Realtime Subscriptions for Multi-device Lecturer & Admin Sync
+    const channel = supabase
+      .channel('attendance-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance' },
+        () => {
+          getAttendanceRecords().then(data => setRecords(data)).catch(() => {});
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const showToast = (message, type = 'success') => {
@@ -54,7 +71,8 @@ export function App() {
       setRecords(updated);
       showToast(`Presensi an. ${newRecord.nama} berhasil dicatat!`, 'success');
     } catch (err) {
-      showToast('Gagal menyimpan presensi. Coba lagi.', 'error');
+      showToast(err.message || 'Gagal menyimpan presensi ke cloud. Coba lagi.', 'error');
+      throw err;
     }
   };
 

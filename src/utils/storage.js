@@ -1,28 +1,5 @@
 import { supabase } from '../lib/supabase';
 
-const LOCAL_KEY = 'lp3i_attendance_records_fallback';
-
-const getLocalRecords = () => {
-  try {
-    const item = localStorage.getItem(LOCAL_KEY);
-    return item ? JSON.parse(item) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveLocalRecord = (record) => {
-  try {
-    const existing = getLocalRecords();
-    const filtered = existing.filter((r) => r.id !== record.id);
-    const updated = [record, ...filtered];
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-    return updated;
-  } catch {
-    return [];
-  }
-};
-
 // Helper: convert base64 dataUrl to Blob for upload
 const dataUrlToBlob = (dataUrl) => {
   const arr = dataUrl.split(',');
@@ -34,6 +11,7 @@ const dataUrlToBlob = (dataUrl) => {
   return new Blob([u8arr], { type: mime });
 };
 
+// Fetch ALL attendance records centrally from Supabase Cloud Database
 export const getAttendanceRecords = async () => {
   try {
     const { data, error } = await supabase
@@ -43,7 +21,7 @@ export const getAttendanceRecords = async () => {
 
     if (error) throw error;
 
-    const dbRecords = (data || []).map((record) => ({
+    return (data || []).map((record) => ({
       ...record,
       fileProof: record.file_url
         ? {
@@ -53,92 +31,68 @@ export const getAttendanceRecords = async () => {
           }
         : null,
     }));
-
-    // Merge with local fallback records (if any created offline or with local file proof)
-    const localRecords = getLocalRecords();
-    const map = new Map();
-    dbRecords.forEach((r) => map.set(r.id, r));
-    localRecords.forEach((r) => {
-      const existing = map.get(r.id);
-      if (!existing) {
-        map.set(r.id, r);
-      } else if (!existing.fileProof && r.fileProof) {
-        // Retain local file proof if Supabase storage was null
-        existing.fileProof = r.fileProof;
-      }
-    });
-
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.waktu) - new Date(a.waktu)
-    );
   } catch (error) {
-    console.warn('Supabase fetch failed, returning local storage records:', error);
-    return getLocalRecords();
+    console.error('Failed to fetch from Supabase Cloud DB:', error);
+    throw error;
   }
 };
 
+// Save record directly to Supabase Cloud Database
 export const saveAttendanceRecord = async (newRecord) => {
   let file_url = null;
   let file_name = null;
   let file_type = null;
 
-  // Always back up the full record (including base64 fileProof) to LocalStorage first
-  saveLocalRecord(newRecord);
+  // Process & upload file proof to Supabase Storage or Cloud DB (max 2MB)
+  if (newRecord.fileProof && newRecord.fileProof.dataUrl) {
+    file_name = newRecord.fileProof.name;
+    file_type = newRecord.fileProof.type;
 
-  try {
-    // Upload file to Supabase Storage if a file proof is attached
-    if (newRecord.fileProof && newRecord.fileProof.dataUrl) {
-      try {
-        const blob = dataUrlToBlob(newRecord.fileProof.dataUrl);
-        const ext = newRecord.fileProof.name.split('.').pop();
-        const storageName = `${newRecord.id}-${Date.now()}.${ext}`;
+    try {
+      const blob = dataUrlToBlob(newRecord.fileProof.dataUrl);
+      const ext = newRecord.fileProof.name.split('.').pop();
+      const storageName = `${newRecord.id}-${Date.now()}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
+        .from('bukti-kehadiran')
+        .upload(storageName, blob, { contentType: newRecord.fileProof.type });
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
           .from('bukti-kehadiran')
-          .upload(storageName, blob, { contentType: newRecord.fileProof.type });
-
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage
-            .from('bukti-kehadiran')
-            .getPublicUrl(storageName);
-          file_url = urlData.publicUrl;
-          file_name = newRecord.fileProof.name;
-          file_type = newRecord.fileProof.type;
-        } else {
-          // If storage bucket isn't available, store dataUrl if it's small or rely on local backup
-          file_name = newRecord.fileProof.name;
-          file_type = newRecord.fileProof.type;
-          if (newRecord.fileProof.dataUrl.length < 500000) {
-            file_url = newRecord.fileProof.dataUrl;
-          }
-        }
-      } catch (fileErr) {
-        console.warn('File upload warning:', fileErr);
+          .getPublicUrl(storageName);
+        file_url = urlData.publicUrl;
+      } else {
+        // Fallback: Store dataUrl directly in file_url column if storage bucket has policy restrictions
+        file_url = newRecord.fileProof.dataUrl;
       }
+    } catch (fileErr) {
+      console.warn('Supabase storage upload warning, storing file dataUrl directly:', fileErr);
+      file_url = newRecord.fileProof.dataUrl;
     }
-
-    // Remove fileProof (base64) before sending to DB
-    const { fileProof, ...recordData } = newRecord;
-
-    const { error } = await supabase.from('attendance').insert({
-      ...recordData,
-      file_url,
-      file_name,
-      file_type,
-    });
-
-    if (error) throw error;
-
-    return await getAttendanceRecords();
-  } catch (error) {
-    console.warn('Supabase insert failed, relying on local fallback storage:', error);
-    return await getAttendanceRecords();
   }
+
+  // Remove local fileProof object before payload insert
+  const { fileProof, ...recordData } = newRecord;
+
+  const { error } = await supabase.from('attendance').insert({
+    ...recordData,
+    file_url,
+    file_name,
+    file_type,
+  });
+
+  if (error) {
+    console.error('Supabase DB Insert Error:', error);
+    throw new Error(error.message || 'Gagal menyimpan ke database cloud Supabase');
+  }
+
+  return await getAttendanceRecords();
 };
 
+// Delete record directly from Supabase Cloud Database
 export const deleteAttendanceRecord = async (recordId) => {
   try {
-    // Delete from Supabase
     const { data: record } = await supabase
       .from('attendance')
       .select('file_url')
@@ -151,17 +105,16 @@ export const deleteAttendanceRecord = async (recordId) => {
       await supabase.storage.from('bukti-kehadiran').remove([fileName]);
     }
 
-    await supabase.from('attendance').delete().eq('id', recordId);
-  } catch (error) {
-    console.warn('Supabase delete failed:', error);
-  }
+    const { error } = await supabase
+      .from('attendance')
+      .delete()
+      .eq('id', recordId);
 
-  // Delete from local storage
-  try {
-    const existing = getLocalRecords();
-    const updated = existing.filter((r) => r.id !== recordId);
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-  } catch {}
+    if (error) throw error;
+  } catch (error) {
+    console.error('Supabase delete error:', error);
+    throw error;
+  }
 
   return await getAttendanceRecords();
 };
