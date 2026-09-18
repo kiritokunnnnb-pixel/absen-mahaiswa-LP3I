@@ -115,7 +115,7 @@ export const StudentAttendanceForm = ({ onSubmitSuccess }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -128,11 +128,14 @@ export const StudentAttendanceForm = ({ onSubmitSuccess }) => {
       waktu: new Date().toISOString()
     };
 
-    setTimeout(() => {
-      onSubmitSuccess(recordPayload);
-      setIsSubmitting(false);
+    try {
+      await onSubmitSuccess(recordPayload);
       setSubmittedReceipt(recordPayload);
-    }, 600);
+    } catch (err) {
+      console.error("Form submit error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetForm = () => {
