@@ -8,7 +8,7 @@ export const AdminLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
   if (!isOpen) return null;
 
-  const correctPassword = 'admin123'; 
+  const correctPassword = 'akademik23993'; 
 
   const handleLogin = () => {
     if (password === correctPassword) {
