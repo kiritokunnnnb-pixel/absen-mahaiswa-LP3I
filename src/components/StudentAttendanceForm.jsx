@@ -64,7 +64,12 @@ export const StudentAttendanceForm = ({ onSubmitSuccess }) => {
         matakuliah: 'Pemrograman Web Lanjut',
         status: 'Hadir',
         catatan: 'Hadir di Ruang LKP-1 tepat waktu',
-        fileProof: null
+        fileProof: {
+          name: 'Foto_Kehadiran_Rian.jpg',
+          type: 'image/jpeg',
+          size: 245000,
+          dataUrl: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%230284c7'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='18' font-family='sans-serif'>FOTO BUKTI KEHADIRAN KELAS</text></svg>"
+        }
       });
     } else if (type === 'sakit') {
       setFormData({
@@ -107,8 +112,8 @@ export const StudentAttendanceForm = ({ onSubmitSuccess }) => {
     if (!formData.kelas.trim()) newErrors.kelas = 'Prodi wajib dipilih';
     if (!formData.matakuliah.trim()) newErrors.matakuliah = 'Mata kuliah wajib diisi';
 
-    if ((formData.status === 'Sakit' || formData.status === 'Izin') && !formData.fileProof) {
-      newErrors.fileProof = `Unggah file bukti kehadiran wajib untuk status ${formData.status}`;
+    if (formData.status === 'Hadir' && !formData.fileProof) {
+      newErrors.fileProof = 'Unggah foto / file bukti kehadiran wajib untuk peserta Hadir';
     }
 
     setErrors(newErrors);
@@ -496,7 +501,7 @@ export const StudentAttendanceForm = ({ onSubmitSuccess }) => {
           file={formData.fileProof}
           onFileSelect={(fileObj) => handleInputChange('fileProof', fileObj)}
           onFileRemove={() => handleInputChange('fileProof', null)}
-          isRequired={formData.status === 'Sakit' || formData.status === 'Izin'}
+          isRequired={formData.status === 'Hadir'}
         />
         {errors.fileProof && (
           <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '-0.5rem', marginBottom: '1rem' }}>

@@ -141,14 +141,14 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.2)', background: 'var(--lp3i-teal)', padding: '1.5rem 2rem', textAlign: 'center', color: '#e2e8f0', fontSize: '0.85rem' }}>
-        <p style={{ color: '#ffffff', fontWeight: 600, marginBottom: '4px' }}>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.15)', background: 'var(--lp3i-navbar-navy)', padding: '1.75rem 2rem', textAlign: 'center', color: '#ffffff', fontSize: '0.85rem' }}>
+        <p style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.95rem', marginBottom: '6px', letterSpacing: '0.01em' }}>
           Politeknik LP3I Jakarta Kampus Depok
         </p>
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+        <p style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.85)', margin: '4px 0' }}>
           Jl. Raya Bogor Km.38 No.56 Kel. Sukamaju Kec. Cilodong, Kota Depok.
         </p>
-        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>
+        <p style={{ fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.7)', marginTop: '0.6rem' }}>
           &copy; {new Date().getFullYear()} Politeknik LP3I Jakarta Kampus Depok • Hak Cipta Dilindungi
         </p>
       </footer>
