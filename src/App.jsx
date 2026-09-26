@@ -5,7 +5,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { FileViewerModal } from './components/FileViewerModal';
 import { Toast } from './components/Toast';
-import { getAttendanceRecords, saveAttendanceRecord, deleteAttendanceRecord } from './utils/storage';
+import { getAttendanceRecords, saveAttendanceRecord, deleteAttendanceRecord, resetAttendanceData } from './utils/storage';
 import { supabase } from './lib/supabase';
 import { Sparkles } from 'lucide-react';
 
@@ -50,6 +50,7 @@ export function App() {
     if (targetTab === 'ADMIN') {
       if (isAdminAuthenticated) {
         setActiveTab('ADMIN');
+        getAttendanceRecords().then(data => setRecords(data)).catch(() => {});
       } else {
         setIsAdminLoginOpen(true);
       }
@@ -62,6 +63,7 @@ export function App() {
     setIsAdminAuthenticated(true);
     setIsAdminLoginOpen(false);
     setActiveTab('ADMIN');
+    getAttendanceRecords().then(data => setRecords(data)).catch(() => {});
     showToast('Berhasil masuk ke Mode Rekap Admin!', 'success');
   };
 
@@ -100,6 +102,16 @@ export function App() {
     setViewingFileProof({ fileProof, studentName });
   };
 
+  const handleRefreshData = async () => {
+    try {
+      const updated = await getAttendanceRecords();
+      setRecords(updated);
+      showToast('Data presensi berhasil diperbarui dari Cloud!', 'info');
+    } catch (err) {
+      showToast('Gagal memuat ulang data.', 'error');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
       {/* Navbar Header */}
@@ -135,6 +147,7 @@ export function App() {
               onDeleteRecord={handleDeleteRecord}
               onViewFile={handleViewFile}
               onResetData={handleResetData}
+              onRefreshData={handleRefreshData}
             />
           )}
         </div>

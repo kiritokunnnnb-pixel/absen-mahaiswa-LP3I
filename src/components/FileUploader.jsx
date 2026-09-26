@@ -9,7 +9,75 @@ export const FileUploader = ({ file, onFileSelect, onFileRemove, isRequired }) =
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
   const MAX_SIZE_MB = 2;
 
-  const processFile = (selectedFile) => {
+  const compressFile = (selectedFile) => {
+    return new Promise((resolve) => {
+      if (!selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: selectedFile.name,
+            type: selectedFile.type,
+            size: selectedFile.size,
+            dataUrl: e.target.result
+          });
+        };
+        reader.readAsDataURL(selectedFile);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1000;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+          const base64Str = compressedDataUrl.split(',')[1] || '';
+          const compressedSize = Math.round((base64Str.length * 3) / 4);
+          const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "") + ".jpg";
+
+          resolve({
+            name: cleanName,
+            type: 'image/jpeg',
+            size: compressedSize,
+            dataUrl: compressedDataUrl
+          });
+        };
+
+        img.onerror = () => {
+          resolve({
+            name: selectedFile.name,
+            type: selectedFile.type,
+            size: selectedFile.size,
+            dataUrl: e.target.result
+          });
+        };
+
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(selectedFile);
+    });
+  };
+
+  const processFile = async (selectedFile) => {
     setErrorMsg('');
     if (!selectedFile) return;
 
@@ -23,17 +91,12 @@ export const FileUploader = ({ file, onFileSelect, onFileRemove, isRequired }) =
       return;
     }
 
-    // Convert file to Base64 for LocalStorage persistent storing & preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onFileSelect({
-        name: selectedFile.name,
-        type: selectedFile.type,
-        size: selectedFile.size,
-        dataUrl: e.target.result
-      });
-    };
-    reader.readAsDataURL(selectedFile);
+    try {
+      const fileResult = await compressFile(selectedFile);
+      onFileSelect(fileResult);
+    } catch (err) {
+      setErrorMsg('Gagal memproses file. Silakan coba file lain.');
+    }
   };
 
   const handleDrag = (e) => {

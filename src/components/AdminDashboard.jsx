@@ -10,7 +10,7 @@ const prodiCodeMap = {
   BD: 'BD 18641',
 };
 
-export const AdminDashboard = ({ records, onDeleteRecord, onViewFile, onResetData }) => {
+export const AdminDashboard = ({ records, onDeleteRecord, onViewFile, onResetData, onRefreshData }) => {
   const [selectedMeeting, setSelectedMeeting] = useState('ALL');
   const [selectedProdi, setSelectedProdi] = useState('ALL');
 
@@ -52,6 +52,11 @@ export const AdminDashboard = ({ records, onDeleteRecord, onViewFile, onResetDat
 
         {/* Header Action Buttons */}
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {onRefreshData && (
+            <button className="btn-secondary" onClick={onRefreshData} title="Perbarui Data dari Supabase Cloud">
+              <RefreshCw size={15} /> Refresh Data
+            </button>
+          )}
           <button className="btn-primary" onClick={handlePrintReport} title="Cetak Rekapan PDF / Print">
             <Printer size={15} /> Cetak Laporan PDF
           </button>
