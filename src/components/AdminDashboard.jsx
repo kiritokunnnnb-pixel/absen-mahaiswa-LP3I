@@ -17,10 +17,17 @@ export const AdminDashboard = ({ records, onDeleteRecord, onViewFile, onResetDat
   const meetings = ['ALL', 'Meeting 1', 'Meeting 2', 'Meeting 3', 'Meeting 4', 'Meeting 5', 'Meeting 6', 'Meeting 7'];
 
   // Filter records based on selected meeting and prodi
+  const safeRecords = Array.isArray(records) ? records : [];
   let meetingRecords = selectedMeeting === 'ALL'
-    ? records
-    : records.filter(r => (r.meeting || 'Meeting 1') === selectedMeeting);
-  meetingRecords = selectedProdi === 'ALL' ? meetingRecords : meetingRecords.filter(r => r.kelas === selectedProdi);
+    ? safeRecords
+    : safeRecords.filter(r => !r.meeting || r.meeting === selectedMeeting);
+
+  meetingRecords = selectedProdi === 'ALL'
+    ? meetingRecords
+    : meetingRecords.filter(r => {
+        if (!r.kelas) return false;
+        return r.kelas === selectedProdi || prodiCodeMap[r.kelas] === selectedProdi || selectedProdi.startsWith(r.kelas);
+      });
 
   const totalStudents = meetingRecords.length;
   const hadirCount = meetingRecords.filter(r => r.status === 'Hadir').length;

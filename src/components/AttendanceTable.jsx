@@ -26,16 +26,20 @@ const [prodiFilter, setProdiFilter] = useState('ALL');
   };
 
   // Filter records
-  const filteredRecords = records.filter(item => {
+  const filteredRecords = (records || []).filter(item => {
+    if (!item) return false;
     const matchesSearch =
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.nim.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.kelas.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nama || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nim || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.kelas || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.matakuliah || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.meeting || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'ALL' || item.status.toUpperCase() === statusFilter.toUpperCase();
-    const matchesProdi = prodiFilter === 'ALL' || item.kelas === prodiFilter;
+    const matchesStatus = statusFilter === 'ALL' || (item.status || '').toUpperCase() === statusFilter.toUpperCase();
+    const matchesProdi = prodiFilter === 'ALL' ||
+      item.kelas === prodiFilter ||
+      prodiCodeMap[item.kelas] === prodiFilter ||
+      (prodiFilter && item.kelas && prodiFilter.startsWith(item.kelas));
 
     return matchesSearch && matchesStatus && matchesProdi;
   });
