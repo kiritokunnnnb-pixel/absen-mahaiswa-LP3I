@@ -22,7 +22,9 @@ const getLocalCache = () => {
 // Helper: Save cached records to local storage safeguard
 const setLocalCache = (records) => {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(records));
+    if (Array.isArray(records) && records.length > 0) {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(records));
+    }
   } catch (e) {
     console.warn('LocalStorage save error:', e);
   }
@@ -55,7 +57,7 @@ export const getAttendanceRecords = async () => {
 
     if (error) throw error;
 
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       const remoteRecords = data.map((record) => ({
         ...record,
         fileProof: record.file_url
@@ -67,8 +69,9 @@ export const getAttendanceRecords = async () => {
           : null,
       }));
 
-      // Merge remote records with local cache so no local submissions are lost
+      // Merge initial demo records, local cache, and Supabase cloud records so no data is ever lost
       const recordMap = new Map();
+      initialAttendanceRecords.forEach((r) => recordMap.set(r.id, r));
       cached.forEach((r) => recordMap.set(r.id, r));
       remoteRecords.forEach((r) => recordMap.set(r.id, r));
 
@@ -76,15 +79,17 @@ export const getAttendanceRecords = async () => {
         (a, b) => new Date(b.waktu || 0) - new Date(a.waktu || 0)
       );
 
-      setLocalCache(merged);
-      return merged;
+      if (merged.length > 0) {
+        setLocalCache(merged);
+        return merged;
+      }
     }
   } catch (error) {
     console.warn('Supabase DB fetch warning (using local cache safeguard):', error.message || error);
   }
 
-  // Fallback to local cache so user never sees empty database
-  return cached;
+  // Fallback to local cache or initial demo records
+  return cached && cached.length > 0 ? cached : initialAttendanceRecords;
 };
 
 // Save record directly to Supabase Cloud Database with Local Cache & Auto-Compression Safeguards
