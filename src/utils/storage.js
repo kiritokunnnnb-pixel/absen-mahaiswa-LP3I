@@ -48,22 +48,14 @@ export const getAttendanceRecords = async () => {
   const cached = getLocalCache();
 
   try {
-    // Add a 5 second timeout safeguard to prevent hanging on Supabase statement timeout
-    const fetchPromise = supabase
+    // Simple direct fetch without server-side sorting lock overhead
+    const { data, error } = await supabase
       .from('attendance')
-      .select('*')
-      .order('waktu', { ascending: false });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase request timeout')), 5000)
-    );
-
-    const result = await Promise.race([fetchPromise, timeoutPromise]);
-    const { data, error } = result || {};
+      .select('*');
 
     if (error) throw error;
 
-    if (Array.isArray(data)) {
+    if (Array.isArray(data) && data.length > 0) {
       const remoteRecords = data.map((record) => ({
         ...record,
         fileProof: record.file_url
